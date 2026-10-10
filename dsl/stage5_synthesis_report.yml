@@ -1,0 +1,597 @@
+app:
+  description: 拉取飞书「访谈分析库」中的全部单场分析记录，自动完成枚举归一化、类型/机会/痛点分布统计、全局高频词合并、判断信号强度汇总，最后由 LLM 生成综合用户研究报告。
+  icon: 📊
+  icon_background: '#DBEAFE'
+  mode: workflow
+  name: 综合访谈报告-多场汇总
+  use_icon_as_answer_icon: false
+dependencies: []
+kind: app
+version: 0.3.0
+workflow:
+  conversation_variables: []
+  environment_variables:
+  - description: 飞书自建应用的 App ID
+    id: env_feishu_app_id
+    name: FEISHU_APP_ID
+    value: ''
+    value_type: string
+  - description: 飞书自建应用的 App Secret
+    id: env_feishu_app_secret
+    name: FEISHU_APP_SECRET
+    value: ''
+    value_type: secret
+  - description: 多维表格 Base Token
+    id: env_feishu_base_token
+    name: FEISHU_BASE_TOKEN
+    value: ''
+    value_type: string
+  - description: 「访谈分析库」的 Table ID
+    id: env_feishu_analysis_table_id
+    name: FEISHU_ANALYSIS_TABLE_ID
+    value: ''
+    value_type: string
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .docx
+      - .txt
+      - .md
+      - .pdf
+      allowed_file_types:
+      - document
+      allowed_file_upload_methods:
+      - local_file
+      enabled: false
+      fileUploadConfig:
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        image_file_size_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    more_like_this:
+      enabled: false
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      auto_play: disabled
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInLoop: false
+        sourceType: start
+        targetType: http-request
+      id: start-source-http_token-target
+      source: start
+      sourceHandle: source
+      target: http_token
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: http-request
+        targetType: code
+      id: http_token-source-code_tok-target
+      source: http_token
+      sourceHandle: source
+      target: code_tok
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: code_tok-source-http_list-target
+      source: code_tok
+      sourceHandle: source
+      target: http_list
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: http-request
+        targetType: code
+      id: http_list-source-code_aggregate-target
+      source: http_list
+      sourceHandle: source
+      target: code_aggregate
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: llm
+      id: code_aggregate-source-llm_report-target
+      source: code_aggregate
+      sourceHandle: source
+      target: llm_report
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: end
+      id: llm_report-source-end-target
+      source: llm_report
+      sourceHandle: source
+      target: end
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: end
+      id: code_aggregate-source-end-target
+      source: code_aggregate
+      sourceHandle: source
+      target: end
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: ''
+        selected: false
+        title: 开始
+        type: start
+        variables:
+        - hint: 例如：重点评估健身房场景下大耳罩耳机的换购机会，以及闷热/汗问题是否值得立项
+          label: 本期研究重点（可选）
+          max_length: 2000
+          options: []
+          required: false
+          type: paragraph
+          variable: research_focus
+      height: 90
+      id: start
+      position:
+        x: 50
+        y: 280
+      positionAbsolute:
+        x: 50
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: '{"app_id": "{{#env.FEISHU_APP_ID#}}", "app_secret": "{{#env.FEISHU_APP_SECRET#}}"}'
+          type: json
+        desc: 用 App ID/Secret 换取 tenant_access_token
+        headers: 'Content-Type:application/json'
+        method: post
+        params: ''
+        selected: false
+        title: 获取飞书凭证
+        type: http-request
+        url: https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal
+      height: 90
+      id: http_token
+      position:
+        x: 350
+        y: 280
+      positionAbsolute:
+        x: 350
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        code: |
+          import json
+
+          def main(token_body: str) -> dict:
+              token = ''
+              try:
+                  token = json.loads(token_body).get('tenant_access_token', '')
+              except Exception:
+                  pass
+              if not token:
+                  raise Exception('飞书凭证获取失败，请检查环境变量 FEISHU_APP_ID / FEISHU_APP_SECRET。飞书返回：' + str(token_body)[:300])
+              return {'token': token}
+        code_language: python3
+        desc: 解析 tenant_access_token，失败立即报错
+        outputs:
+          token:
+            children: null
+            type: string
+        selected: false
+        title: 解析凭证
+        type: code
+        variables:
+        - value_selector:
+          - http_token
+          - body
+          variable: token_body
+      height: 90
+      id: code_tok
+      position:
+        x: 620
+        y: 280
+      positionAbsolute:
+        x: 620
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: ''
+          type: none
+        desc: 读取「访谈分析库」全部记录（上限100条）
+        headers: 'Authorization:Bearer {{#code_tok.token#}}'
+        method: get
+        params: ''
+        selected: false
+        title: 拉取分析记录
+        type: http-request
+        url: https://open.feishu.cn/open-apis/bitable/v1/apps/{{#env.FEISHU_BASE_TOKEN#}}/tables/{{#env.FEISHU_ANALYSIS_TABLE_ID#}}/records?page_size=100
+      height: 90
+      id: http_list
+      position:
+        x: 890
+        y: 280
+      positionAbsolute:
+        x: 890
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        code: |
+          import json, re
+          from collections import Counter
+
+          def flat(v):
+              if isinstance(v, list):
+                  return ''.join(x.get('text', '') if isinstance(x, dict) else str(x) for x in v)
+              return '' if v is None else str(v)
+
+          def has_cn(s):
+              return bool(re.search(r'[一-鿿]', s or ''))
+
+          def norm_type(s):
+              s = (s or '').strip()
+              if not s:
+                  return '未归类'
+              if has_cn(s):
+                  return s
+              low = s.lower()
+              if 'style' in low or 'display' in low:
+                  return '风格展示型'
+              if 'immers' in low or 'focus' in low:
+                  return '沉浸训练型'
+              if 'audio' in low or 'sound' in low or 'quality' in low:
+                  return '音质优先型'
+              if 'in-ear' in low or 'inear' in low or 'hate' in low or 'canal' in low:
+                  return '不想塞耳型'
+              if 'commut' in low or 'office' in low or 'work' in low:
+                  return '办公通勤顺带型'
+              if 'occasional' in low or 'substitut' in low or 'backup' in low or 'incidental' in low:
+                  return '偶发替代型'
+              return s + '（英文未映射）'
+
+          def norm_pain(s):
+              s = (s or '').strip()
+              if not s:
+                  return '未知'
+              if has_cn(s):
+                  return s
+              low = s.lower().replace('_', ' ')
+              if 'no feeling' in low or 'unaware' in low or 'none' in low:
+                  return '无感'
+              if 'tolerable' in low or 'bearable' in low or 'acceptable' in low:
+                  return '可忍'
+              if 'complain' in low or 'keep' in low:
+                  return '经常抱怨但继续用'
+              if 'affect' in low or 'impact' in low or 'reduced' in low:
+                  return '已经影响佩戴'
+              if 'switch' in low or 'replace' in low or 'considering' in low or 'repurchase' in low:
+                  return '已经考虑换购'
+              return s + '（英文未映射）'
+
+          def norm_opp(s):
+              s = (s or '').strip()
+              if not s:
+                  return '未知'
+              if has_cn(s):
+                  return s
+              low = s.lower().replace('_', ' ')
+              if 'strong demand' in low or ('not' in low and ('suit' in low or 'fit' in low or 'adapt' in low)):
+                  return '已有强需求且现有产品不适配'
+              if 'satisf' in low or 'meet' in low or 'enough' in low:
+                  return '现有产品基本满足'
+              if 'unstable' in low or 'inconsistent' in low or 'irregular' in low:
+                  return '行为不稳定'
+              if 'specific' in low or 'occasional' in low or 'scenario' in low or 'niche' in low:
+                  return '只是个别场景'
+              return s + '（英文未映射）'
+
+          def norm_signal(v):
+              low = str(v or '').strip().lower()
+              if low in ('strong', '强', '强信号'):
+                  return 'strong'
+              if low in ('weak', '弱', '弱信号'):
+                  return 'weak'
+              if low in ('mixed', '混合', '信号混合'):
+                  return 'mixed'
+              return 'unknown'
+
+          SIGNAL_NAMES = [
+              ('stable_behavior', '大耳罩健身是稳定行为'),
+              ('clear_value', '核心价值明确'),
+              ('heat_priority', '闷热/汗是高优先级问题'),
+              ('anc_real_need', '降噪是真需求'),
+              ('stability_blocker', '稳定性阻碍高强度运动'),
+              ('repurchase_opportunity', '存在换购机会'),
+          ]
+
+          def cut(s, n):
+              s = (s or '').strip().replace('\n', ' ')
+              return s if len(s) <= n else s[:n] + '…'
+
+          def main(records_body: str) -> dict:
+              try:
+                  data = json.loads(records_body)
+              except Exception:
+                  raise Exception('飞书返回不是合法JSON：' + str(records_body)[:300])
+              if data.get('code') != 0:
+                  raise Exception('拉取访谈分析库失败：' + str(records_body)[:300])
+              items = (data.get('data') or {}).get('items') or []
+              if not items:
+                  raise Exception('访谈分析库为空，请先运行单场访谈分析工作流写入记录。')
+
+              type_c, opp_c, pain_c = Counter(), Counter(), Counter()
+              sig_stat = {k: Counter() for k, _ in SIGNAL_NAMES}
+              word_c = Counter()
+              digest_lines = []
+
+              for it in items:
+                  f = it.get('fields') or {}
+                  uid = cut(flat(f.get('受访者编号')), 30) or '未知编号'
+                  utype = norm_type(flat(f.get('用户类型')))
+                  opp = norm_opp(flat(f.get('机会判断')))
+                  pain = norm_pain(flat(f.get('痛点强度')))
+                  type_c[utype] += 1
+                  opp_c[opp] += 1
+                  pain_c[pain] += 1
+
+                  top_words = flat(f.get('高频词'))
+                  JUNK = {'mock', 'transcript', 'persona', 'interview', 'notes', 'note', "it's", 'its', 'type'}
+                  for w, c in re.findall(r'\d+\.\s*([A-Za-z][A-Za-z\'\-]*)\s*——\s*(\d+)\s*次', top_words):
+                      if w.lower() not in JUNK:
+                          word_c[w.lower()] += int(c)
+
+                  profile = {}
+                  try:
+                      profile = json.loads(flat(f.get('画像JSON')) or '{}')
+                  except Exception:
+                      profile = {}
+                  signals = {}
+                  try:
+                      signals = json.loads(flat(f.get('信号JSON')) or '{}')
+                  except Exception:
+                      signals = {}
+                  for k, _ in SIGNAL_NAMES:
+                      sig_stat[k][norm_signal(signals.get(k))] += 1
+
+                  top3 = profile.get('top3_priorities') or []
+                  if not isinstance(top3, list):
+                      top3 = [str(top3)]
+                  anc = profile.get('anc_score')
+                  heat = profile.get('heat_score')
+                  line = '- {uid} | 类型:{t} | 痛点:{p} | 机会:{o} | 降噪需求:{a}/7 闷热严重:{h}/7 | 优先级:{pr} | 换购触发:{tr} | 洞察:{ins}'.format(
+                      uid=uid, t=utype, p=pain, o=opp,
+                      a=anc if anc is not None else '?', h=heat if heat is not None else '?',
+                      pr=cut('、'.join(str(x) for x in top3), 60) or '未提及',
+                      tr=cut(str(profile.get('repurchase_triggers', '')), 90) or '未提及',
+                      ins=cut(str(profile.get('one_sentence_insight', '')), 110) or '未提及',
+                  )
+                  digest_lines.append(line)
+
+              def dist(counter):
+                  return '；'.join('{} {}人'.format(k, v) for k, v in counter.most_common())
+
+              sig_lines = []
+              for k, name in SIGNAL_NAMES:
+                  c = sig_stat[k]
+                  sig_lines.append('- {}：强信号 {} / 混合 {} / 弱信号 {} / 信息不足 {}'.format(
+                      name, c.get('strong', 0), c.get('mixed', 0), c.get('weak', 0), c.get('unknown', 0)))
+
+              global_words = '；'.join('{} ×{}'.format(w, c) for w, c in word_c.most_common(15))
+
+              stats = '\n'.join([
+                  '样本量：{} 场'.format(len(items)),
+                  '用户类型分布：' + dist(type_c),
+                  '机会判断分布：' + dist(opp_c),
+                  '痛点强度分布：' + dist(pain_c),
+                  '',
+                  '判断信号强度汇总（6项）：',
+                  '\n'.join(sig_lines),
+                  '',
+                  '跨场次全局高频词 TOP15：' + (global_words or '无'),
+              ])
+              digest = '\n'.join(digest_lines)
+              return {'digest': digest, 'stats': stats, 'sample_size': len(items)}
+        code_language: python3
+        desc: 聚合全部单场记录：枚举归一化、分布统计、全局高频词、信号强度汇总，生成供LLM使用的紧凑摘要
+        outputs:
+          digest:
+            children: null
+            type: string
+          sample_size:
+            children: null
+            type: number
+          stats:
+            children: null
+            type: string
+        selected: false
+        title: 聚合与归一化
+        type: code
+        variables:
+        - value_selector:
+          - http_list
+          - body
+          variable: records_body
+      height: 90
+      id: code_aggregate
+      position:
+        x: 1160
+        y: 280
+      positionAbsolute:
+        x: 1160
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 基于聚合摘要与统计数据，生成综合用户研究报告
+        model:
+          completion_params:
+            temperature: 0.3
+          mode: chat
+          name: qwen-max
+          provider: langgenius/tongyi/tongyi
+        prompt_template:
+        - id: sys-report
+          role: system
+          text: |
+            你是一名资深用户研究负责人，就职于一家头戴式耳机公司。团队刚完成一组北美用户访谈，主题是「在健身房佩戴头戴式耳机（over-ear headphones）的爽点、痛点与换购机会」。每位受访者的单场分析已经完成，现在需要你基于全部单场分析的聚合结果，撰写综合研究报告。
+
+            报告用中文撰写，严格按以下结构输出：
+
+            ## 一、研究概览
+            - 样本量、用户类型分布、机会判断分布、痛点强度分布（用表格呈现）
+
+            ## 二、跨场次核心发现
+            - 结合全局高频词与逐场洞察，总结 3-5 个最重要的跨场次发现，每个发现标注涉及哪些受访者编号
+
+            ## 三、四大主题深挖
+            1. 闷热/汗/清洁：普遍程度、严重程度分布、是否构成购买阻碍
+            2. 降噪/隔噪：真需求还是伪需求、不同用户类型的差异
+            3. 稳定性/夹持：哪些运动场景出问题、影响多大
+            4. 音质与外观：在购买决策中的权重
+
+            ## 四、用户分型洞察与机会排序
+            - 按用户类型逐一评估：规模、痛点强度、换购意愿、产品机会
+            - 给出「最值得优先满足的用户类型」排序与理由
+
+            ## 五、产品机会与建议
+            - 按优先级列出具体的产品机会点（功能、形态、材质、定价等），每条注明证据来自哪些受访者
+
+            ## 六、研究局限与后续建议
+            - 样本局限、方法局限、下一步研究建议
+
+            硬性规则：
+            1. 所有结论必须基于提供的聚合数据，引用证据时注明受访者编号（如 US-SEA-011）
+            2. 聚合摘要中没有的信息，明确写「样本中未覆盖」，严禁编造原话或数据
+            3. 注意区分强信号与弱信号：行为不稳定/偶发型用户的抱怨权重应低于稳定用户
+            4. 如果某些受访者字段显示「英文未映射」或「未提及」，如实呈现，不要自行脑补归类
+        - id: user-report
+          role: user
+          text: |
+            本期研究重点（研究员输入）：
+            {{#start.research_focus#}}
+
+            全样本统计数据：
+            {{#code_aggregate.stats#}}
+
+            逐场聚合摘要：
+            {{#code_aggregate.digest#}}
+        selected: false
+        title: 综合报告生成
+        type: llm
+        vision:
+          enabled: false
+      height: 90
+      id: llm_report
+      position:
+        x: 1430
+        y: 280
+      positionAbsolute:
+        x: 1430
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: ''
+        outputs:
+        - value_selector:
+          - llm_report
+          - text
+          variable: final_report
+        - value_selector:
+          - code_aggregate
+          - stats
+          variable: aggregate_stats
+        - value_selector:
+          - code_aggregate
+          - digest
+          variable: per_interview_digest
+        selected: false
+        title: 结束
+        type: end
+      height: 160
+      id: end
+      position:
+        x: 1730
+        y: 280
+      positionAbsolute:
+        x: 1730
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0.8
