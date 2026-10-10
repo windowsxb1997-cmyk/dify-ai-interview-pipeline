@@ -1,0 +1,632 @@
+app:
+  description: 受访者填写的英文招募问卷（Dify 托管页面直接分享链接）。提交后由 LLM 按招募标准初筛打分，结果自动写入飞书多维表格「问卷池」。使用前请在环境变量中配置 FEISHU_APP_ID / FEISHU_APP_SECRET / FEISHU_BASE_TOKEN / FEISHU_TABLE_ID。
+  icon: 📋
+  icon_background: '#D5F5F6'
+  mode: workflow
+  name: 环节1-北美健身房大耳罩用户招募问卷
+  use_icon_as_answer_icon: false
+dependencies: []
+kind: app
+version: 0.3.0
+workflow:
+  conversation_variables: []
+  environment_variables:
+  - description: 飞书自建应用的 App ID
+    id: env_feishu_app_id
+    name: FEISHU_APP_ID
+    value: ''
+    value_type: string
+  - description: 飞书自建应用的 App Secret
+    id: env_feishu_app_secret
+    name: FEISHU_APP_SECRET
+    value: ''
+    value_type: secret
+  - description: 多维表格 URL 中 /base/ 后面的一段（base token）
+    id: env_feishu_base_token
+    name: FEISHU_BASE_TOKEN
+    value: ''
+    value_type: string
+  - description: 数据表「问卷池」的 table id（URL 中 &table= 后面的一段）
+    id: env_feishu_table_id
+    name: FEISHU_TABLE_ID
+    value: ''
+    value_type: string
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .PNG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      enabled: false
+      fileUploadConfig:
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        image_file_size_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    more_like_this:
+      enabled: false
+    opening_statement: "Hi there! 🎧 We're a headphone research team studying how people use over-ear headphones in the gym. This short survey takes about 3 minutes. If you're a good fit, we'll invite you to a paid 45-minute voice interview. Thank you!"
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      auto_play: disabled
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInLoop: false
+        sourceType: start
+        targetType: llm
+      id: start-source-llm_screen-target
+      source: start
+      sourceHandle: source
+      target: llm_screen
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: start
+        targetType: http-request
+      id: start-source-http_token-target
+      source: start
+      sourceHandle: source
+      target: http_token
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: llm_screen-source-code_assemble-target
+      source: llm_screen
+      sourceHandle: source
+      target: code_assemble
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: http-request
+        targetType: code
+      id: http_token-source-code_assemble-target
+      source: http_token
+      sourceHandle: source
+      target: code_assemble
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: code_assemble-source-http_create-target
+      source: code_assemble
+      sourceHandle: source
+      target: http_create
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: http-request
+        targetType: template-transform
+      id: http_create-source-tpl_confirm-target
+      source: http_create
+      sourceHandle: source
+      target: tpl_confirm
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: template-transform
+        targetType: end
+      id: tpl_confirm-source-end-target
+      source: tpl_confirm
+      sourceHandle: source
+      target: end
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: ''
+        selected: false
+        title: 开始
+        type: start
+        variables:
+        - label: Your name / 姓名
+          max_length: 100
+          options: []
+          required: true
+          type: text-input
+          variable: name
+        - label: Email (for interview invitation)
+          max_length: 200
+          options: []
+          required: true
+          type: text-input
+          variable: email
+        - label: Age range
+          options:
+          - 18-24
+          - 25-34
+          - 35-44
+          - 45 or above
+          required: true
+          type: select
+          variable: age_range
+        - label: Gender
+          options:
+          - Male
+          - Female
+          - Non-binary
+          - Prefer not to say
+          required: true
+          type: select
+          variable: gender
+        - label: State / City (North America)
+          max_length: 100
+          options: []
+          required: true
+          type: text-input
+          variable: location
+        - label: Occupation (e.g. grad student, software engineer)
+          max_length: 100
+          options: []
+          required: false
+          type: text-input
+          variable: occupation
+        - label: What type of gym do you go to most?
+          options:
+          - University / campus gym
+          - Corporate / office gym
+          - Commercial gym (e.g. Planet Fitness, LA Fitness, Equinox, YMCA)
+          - Apartment gym
+          - Other
+          required: true
+          type: select
+          variable: gym_type
+        - label: How often do you work out per week?
+          options:
+          - Less than once
+          - 1-2 times
+          - 2-3 times
+          - 4-5 times
+          - 6+ times
+          required: true
+          type: select
+          variable: training_frequency
+        - label: What training do you mainly do? (e.g. strength, cardio, HIIT, classes)
+          max_length: 200
+          options: []
+          required: true
+          type: text-input
+          variable: training_types
+        - label: Do you own over-ear / on-ear headphones?
+          options:
+          - 'Yes'
+          - 'No'
+          required: true
+          type: select
+          variable: owns_over_ear
+        - label: Brand & model of your main over-ear headphones (e.g. Sony WH-1000XM5)
+          max_length: 200
+          options: []
+          required: false
+          type: text-input
+          variable: headphone_model
+        - label: How much did your over-ear headphones cost?
+          options:
+          - Under $100
+          - $100 - $199
+          - $200 - $299
+          - $300 or above
+          required: true
+          type: select
+          variable: price_range
+        - label: How often do you wear over-ear headphones at the gym?
+          options:
+          - Every session
+          - Often (more than half)
+          - Sometimes
+          - Rarely
+          - Never
+          required: true
+          type: select
+          variable: gym_wearing_frequency
+        - hint: e.g. heat, sweat, slipping during bench press, too heavy, hard to clean...
+          label: Any annoyances when wearing over-ear headphones at the gym? (optional)
+          max_length: 1000
+          options: []
+          required: false
+          type: paragraph
+          variable: pain_points
+      height: 480
+      id: start
+      position:
+        x: 50
+        y: 300
+      positionAbsolute:
+        x: 50
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 按招募标准对问卷初筛打分，只输出 JSON
+        model:
+          completion_params:
+            temperature: 0.1
+          mode: chat
+          name: qwen-max
+          provider: langgenius/tongyi/tongyi
+        prompt_template:
+        - id: sys-screen
+          role: system
+          text: |
+            你是一名用户研究招募专家。我们在为「北美健身房佩戴头戴式耳机（over-ear headphones）」研究项目筛选访谈对象。
+
+            【硬性筛选标准】（任一不满足则 qualified=false）
+            1. 每周训练频率 ≥ 2-3 次
+            2. 大耳罩耳机价格 ≥ $200（约 1500 RMB，这是主要筛选指标）
+            3. 训练内容包含力量训练（strength / lifting / weights 等）
+            4. 目前确实在健身房佩戴大耳罩（Every session / Often / Sometimes 均可；Rarely/Never 不达标）
+            5. 必须拥有大耳罩耳机（owns_over_ear = Yes）
+
+            【软性加分项】（影响 score，不影响 qualified）
+            - 痛点自述具体、有细节（说明是真实用户）
+            - 健身房类型为学校/公司/商业健身房（分层采样需要）
+            - 通勤场景中也有耳机使用迹象
+
+            【研究员重点关注场景】健身房场景为主，通勤场景为辅。
+
+            只输出一个 JSON 对象，不要输出任何其他文字、解释或代码块标记：
+            {"qualified": true, "score": 85, "tags": ["标签1", "标签2"], "reason": "中文简评，2-3句", "scene_focus": "gym 或 commute 或 both"}
+
+            其中 score 为 0-100 的匹配分；tags 为 2-4 个中文标签（如：学校健身房、力量训练为主、高频佩戴、痛点明确）。
+        - id: user-screen
+          role: user
+          text: |
+            问卷内容：
+            - 姓名：{{#start.name#}}
+            - 年龄段：{{#start.age_range#}}
+            - 性别：{{#start.gender#}}
+            - 地区：{{#start.location#}}
+            - 职业：{{#start.occupation#}}
+            - 健身房类型：{{#start.gym_type#}}
+            - 每周训练频率：{{#start.training_frequency#}}
+            - 训练类型：{{#start.training_types#}}
+            - 是否拥有大耳罩：{{#start.owns_over_ear#}}
+            - 耳机型号：{{#start.headphone_model#}}
+            - 耳机价格段：{{#start.price_range#}}
+            - 健身房佩戴频率：{{#start.gym_wearing_frequency#}}
+            - 痛点自述：{{#start.pain_points#}}
+        selected: false
+        title: AI 初筛评估
+        type: llm
+        vision:
+          enabled: false
+      height: 90
+      id: llm_screen
+      position:
+        x: 360
+        y: 180
+      positionAbsolute:
+        x: 360
+        y: 180
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: '{"app_id": "{{#env.FEISHU_APP_ID#}}", "app_secret": "{{#env.FEISHU_APP_SECRET#}}"}'
+          type: json
+        desc: 用 App ID/Secret 换取 tenant_access_token
+        headers: 'Content-Type:application/json'
+        method: post
+        params: ''
+        selected: false
+        title: 获取飞书凭证
+        type: http-request
+        url: https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal
+      height: 90
+      id: http_token
+      position:
+        x: 360
+        y: 440
+      positionAbsolute:
+        x: 360
+        y: 440
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        code: |
+          import json
+          from datetime import datetime, timedelta, timezone
+
+          def extract_json(s: str) -> dict:
+              i, j = s.find('{'), s.rfind('}')
+              if i == -1 or j == -1 or j <= i:
+                  return {}
+              try:
+                  return json.loads(s[i:j + 1])
+              except Exception:
+                  return {}
+
+          def main(token_body: str, llm_text: str, name: str, email: str, age_range: str,
+                   gender: str, location: str, occupation: str, gym_type: str,
+                   training_frequency: str, training_types: str, owns_over_ear: str,
+                   headphone_model: str, price_range: str, gym_wearing_frequency: str,
+                   pain_points: str) -> dict:
+              token = ''
+              try:
+                  token = json.loads(token_body).get('tenant_access_token', '')
+              except Exception:
+                  pass
+              if not token:
+                  raise Exception('飞书凭证获取失败，请检查环境变量 FEISHU_APP_ID / FEISHU_APP_SECRET 是否填对并保存。飞书返回：' + str(token_body)[:300])
+
+              eval_result = extract_json(llm_text)
+              qualified = bool(eval_result.get('qualified', False))
+              score = eval_result.get('score', 0)
+              try:
+                  score = int(score)
+              except Exception:
+                  score = 0
+              tags = eval_result.get('tags', [])
+              if not isinstance(tags, list):
+                  tags = [str(tags)]
+              reason = str(eval_result.get('reason', ''))
+              scene_focus = str(eval_result.get('scene_focus', ''))
+
+              fields = {
+                  '姓名': name,
+                  '邮箱': email,
+                  '年龄段': age_range,
+                  '性别': gender,
+                  '地区': location,
+                  '职业': occupation,
+                  '健身房类型': gym_type,
+                  '训练频率': training_frequency,
+                  '训练类型': training_types,
+                  '是否有大耳罩': owns_over_ear,
+                  '耳机型号': headphone_model,
+                  '耳机价格段': price_range,
+                  '健身房佩戴频率': gym_wearing_frequency,
+                  '痛点自述': pain_points,
+                  'AI匹配分': score,
+                  'AI标签': '、'.join(tags),
+                  'AI评估理由': reason,
+                  'AI关注场景': scene_focus,
+                  '是否达标': '达标' if qualified else '不达标',
+                  '筛选状态': '待筛选',
+                  '邀请状态': '未邀请',
+                  '问卷提交时间': (datetime.now(timezone.utc) + timedelta(hours=8)).strftime('%Y-%m-%d %H:%M:%S'),
+              }
+              payload = json.dumps({'fields': fields}, ensure_ascii=False)
+              return {
+                  'token': token,
+                  'payload_json': payload,
+                  'ai_score': score,
+                  'qualified': '达标' if qualified else '不达标',
+              }
+        code_language: python3
+        desc: 解析 AI 评估结果与飞书凭证，组装写入多维表格的请求体
+        outputs:
+          ai_score:
+            children: null
+            type: number
+          payload_json:
+            children: null
+            type: string
+          qualified:
+            children: null
+            type: string
+          token:
+            children: null
+            type: string
+        selected: false
+        title: 组装飞书记录
+        type: code
+        variables:
+        - value_selector:
+          - http_token
+          - body
+          variable: token_body
+        - value_selector:
+          - llm_screen
+          - text
+          variable: llm_text
+        - value_selector:
+          - start
+          - name
+          variable: name
+        - value_selector:
+          - start
+          - email
+          variable: email
+        - value_selector:
+          - start
+          - age_range
+          variable: age_range
+        - value_selector:
+          - start
+          - gender
+          variable: gender
+        - value_selector:
+          - start
+          - location
+          variable: location
+        - value_selector:
+          - start
+          - occupation
+          variable: occupation
+        - value_selector:
+          - start
+          - gym_type
+          variable: gym_type
+        - value_selector:
+          - start
+          - training_frequency
+          variable: training_frequency
+        - value_selector:
+          - start
+          - training_types
+          variable: training_types
+        - value_selector:
+          - start
+          - owns_over_ear
+          variable: owns_over_ear
+        - value_selector:
+          - start
+          - headphone_model
+          variable: headphone_model
+        - value_selector:
+          - start
+          - price_range
+          variable: price_range
+        - value_selector:
+          - start
+          - gym_wearing_frequency
+          variable: gym_wearing_frequency
+        - value_selector:
+          - start
+          - pain_points
+          variable: pain_points
+      height: 90
+      id: code_assemble
+      position:
+        x: 680
+        y: 300
+      positionAbsolute:
+        x: 680
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: '{{#code_assemble.payload_json#}}'
+          type: json
+        desc: 向多维表格「问卷池」写入一条记录
+        headers: 'Authorization:Bearer {{#code_assemble.token#}}'
+        method: post
+        params: ''
+        selected: false
+        title: 写入飞书问卷池
+        type: http-request
+        url: https://open.feishu.cn/open-apis/bitable/v1/apps/{{#env.FEISHU_BASE_TOKEN#}}/tables/{{#env.FEISHU_TABLE_ID#}}/records
+      height: 90
+      id: http_create
+      position:
+        x: 1000
+        y: 300
+      positionAbsolute:
+        x: 1000
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: 组装提交确认语
+        selected: false
+        template: "Hi {{ name }}, thank you for completing the survey! 🎧\n\nYour response has been submitted. Our research team reviews every application carefully — **if you're selected, we'll email you an invitation to a 45-minute voice interview within 5 business days. Selected participants will receive a $100 reward (Amazon gift card or headphones).**\n\nHave a great workout! 💪"
+        title: 组装确认语
+        type: template-transform
+        variables:
+        - value_selector:
+          - start
+          - name
+          variable: name
+      height: 90
+      id: tpl_confirm
+      position:
+        x: 1300
+        y: 300
+      positionAbsolute:
+        x: 1300
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: ''
+        outputs:
+        - value_selector:
+          - tpl_confirm
+          - output
+          variable: confirmation
+        - value_selector:
+          - code_assemble
+          - qualified
+          variable: screening_result
+        - value_selector:
+          - code_assemble
+          - ai_score
+          variable: ai_match_score
+        selected: false
+        title: 结束
+        type: end
+      height: 140
+      id: end
+      position:
+        x: 1600
+        y: 300
+      positionAbsolute:
+        x: 1600
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0.8

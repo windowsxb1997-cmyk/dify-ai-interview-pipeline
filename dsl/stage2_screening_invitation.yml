@@ -1,0 +1,623 @@
+app:
+  description: 研究员输入筛选条件（如"女性优先、25-34岁、商业健身房、AI匹配分80以上"）和本批邀请人数，工作流自动读取飞书问卷池待筛选候选人，由 LLM 选出最合适的人选，批量生成英文邀请邮件（含访谈链接与 $100 奖励说明）并回写表格状态。演示模式：邮件内容写入表格「邀请邮件内容」字段，不真实发信；接入真实发信只需在末尾追加一个 Resend HTTP 节点。
+  icon: 📨
+  icon_background: '#FFEAD5'
+  mode: workflow
+  name: 环节2-筛选与分批邀请
+  use_icon_as_answer_icon: false
+dependencies: []
+kind: app
+version: 0.3.0
+workflow:
+  conversation_variables: []
+  environment_variables:
+  - description: 飞书自建应用的 App ID
+    id: env_feishu_app_id
+    name: FEISHU_APP_ID
+    value: ''
+    value_type: string
+  - description: 飞书自建应用的 App Secret
+    id: env_feishu_app_secret
+    name: FEISHU_APP_SECRET
+    value: ''
+    value_type: secret
+  - description: 多维表格 Base Token
+    id: env_feishu_base_token
+    name: FEISHU_BASE_TOKEN
+    value: ''
+    value_type: string
+  - description: 「问卷池」的 Table ID
+    id: env_feishu_table_id
+    name: FEISHU_TABLE_ID
+    value: ''
+    value_type: string
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      enabled: false
+      fileUploadConfig:
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        image_file_size_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    more_like_this:
+      enabled: false
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      auto_play: disabled
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInLoop: false
+        sourceType: start
+        targetType: http-request
+      id: start-source-http_token-target
+      source: start
+      sourceHandle: source
+      target: http_token
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: http-request
+        targetType: code
+      id: http_token-source-code_token-target
+      source: http_token
+      sourceHandle: source
+      target: code_token
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: code_token-source-http_list-target
+      source: code_token
+      sourceHandle: source
+      target: http_list
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: http-request
+        targetType: code
+      id: http_list-source-code_filter-target
+      source: http_list
+      sourceHandle: source
+      target: code_filter
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: llm
+      id: code_filter-source-llm_select-target
+      source: code_filter
+      sourceHandle: source
+      target: llm_select
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: llm_select-source-code_prepare-target
+      source: llm_select
+      sourceHandle: source
+      target: code_prepare
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: http-request
+        targetType: code
+      id: http_list-source-code_prepare-target
+      source: http_list
+      sourceHandle: source
+      target: code_prepare
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: code_prepare-source-http_update-target
+      source: code_prepare
+      sourceHandle: source
+      target: http_update
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: http-request
+        targetType: end
+      id: http_update-source-end-target
+      source: http_update
+      sourceHandle: source
+      target: end
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: ''
+        selected: false
+        title: 开始
+        type: start
+        variables:
+        - hint: 例如：女性优先、25-34岁、商业健身房、AI匹配分80以上。留空则按AI匹配分从高到低选
+          label: 筛选条件（自然语言）
+          max_length: 2000
+          options: []
+          required: true
+          type: paragraph
+          variable: criteria
+        - label: 本批邀请人数上限
+          options:
+          - '5'
+          - '10'
+          - '12'
+          - '15'
+          - '20'
+          required: true
+          type: select
+          variable: batch_size
+        - hint: 受访者点击后进入 AI 语音访谈页面（环节 3 搭好后替换为真实链接）
+          label: 访谈链接
+          max_length: 500
+          options: []
+          required: true
+          type: text-input
+          variable: interview_link
+      height: 200
+      id: start
+      position:
+        x: 50
+        y: 300
+      positionAbsolute:
+        x: 50
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: '{"app_id": "{{#env.FEISHU_APP_ID#}}", "app_secret": "{{#env.FEISHU_APP_SECRET#}}"}'
+          type: json
+        desc: 用 App ID/Secret 换取 tenant_access_token
+        headers: 'Content-Type:application/json'
+        method: post
+        params: ''
+        selected: false
+        title: 获取飞书凭证
+        type: http-request
+        url: https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal
+      height: 90
+      id: http_token
+      position:
+        x: 350
+        y: 180
+      positionAbsolute:
+        x: 350
+        y: 180
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        code: |
+          import json
+
+          def main(token_body: str) -> dict:
+              token = ''
+              try:
+                  token = json.loads(token_body).get('tenant_access_token', '')
+              except Exception:
+                  pass
+              if not token:
+                  raise Exception('飞书凭证获取失败，请检查环境变量 FEISHU_APP_ID / FEISHU_APP_SECRET。飞书返回：' + str(token_body)[:300])
+              return {'token': token}
+        code_language: python3
+        desc: 解析 tenant_access_token，失败立即报错
+        outputs:
+          token:
+            children: null
+            type: string
+        selected: false
+        title: 解析凭证
+        type: code
+        variables:
+        - value_selector:
+          - http_token
+          - body
+          variable: token_body
+      height: 90
+      id: code_token
+      position:
+        x: 650
+        y: 180
+      positionAbsolute:
+        x: 650
+        y: 180
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: ''
+          type: none
+        desc: 读取问卷池全部记录（上限 500 条/页）
+        headers: 'Authorization:Bearer {{#code_token.token#}}'
+        method: get
+        params: ''
+        selected: false
+        title: 读取问卷池
+        type: http-request
+        url: https://open.feishu.cn/open-apis/bitable/v1/apps/{{#env.FEISHU_BASE_TOKEN#}}/tables/{{#env.FEISHU_TABLE_ID#}}/records?page_size=500
+      height: 90
+      id: http_list
+      position:
+        x: 950
+        y: 180
+      positionAbsolute:
+        x: 950
+        y: 180
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        code: |
+          import json
+
+          def main(list_body: str) -> dict:
+              d = json.loads(list_body)
+              items = d.get('data', {}).get('items', [])
+              rows = []
+              for it in items:
+                  f = it.get('fields', {})
+                  if str(f.get('筛选状态', '')).strip() != '待筛选':
+                      continue
+                  try:
+                      score = int(f.get('AI匹配分') or 0)
+                  except Exception:
+                      score = 0
+                  line = ' | '.join([
+                      'RID:' + str(it.get('record_id', '')),
+                      str(f.get('姓名', '')),
+                      str(f.get('性别', '')),
+                      str(f.get('年龄段', '')),
+                      str(f.get('健身房类型', '')),
+                      '训练:' + str(f.get('训练频率', '')),
+                      str(f.get('训练类型', '')),
+                      '耳机:' + (str(f.get('耳机型号', '')) or '无'),
+                      str(f.get('耳机价格段', '')),
+                      '佩戴:' + str(f.get('健身房佩戴频率', '')),
+                      '痛点:' + (str(f.get('痛点自述', '')) or '无')[:50],
+                      'AI分:' + str(score),
+                      '标签:' + str(f.get('AI标签', '')),
+                      str(f.get('是否达标', '')),
+                  ])
+                  rows.append((score, line))
+              if not rows:
+                  raise Exception('问卷池中没有「待筛选」状态的候选人。请检查问卷池数据或重置筛选状态。')
+              rows.sort(key=lambda x: -x[0])
+              lines = [line for _, line in rows[:120]]
+              return {'candidates_text': '\n'.join(lines), 'pool_size': len(rows)}
+        code_language: python3
+        desc: 过滤出「待筛选」候选人并压缩成单行摘要，供 LLM 阅读
+        outputs:
+          candidates_text:
+            children: null
+            type: string
+          pool_size:
+            children: null
+            type: number
+        selected: false
+        title: 整理候选人池
+        type: code
+        variables:
+        - value_selector:
+          - http_list
+          - body
+          variable: list_body
+      height: 90
+      id: code_filter
+      position:
+        x: 1250
+        y: 180
+      positionAbsolute:
+        x: 1250
+        y: 180
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 按研究员条件从候选人中选出本批最合适的人选
+        model:
+          completion_params:
+            temperature: 0.1
+          mode: chat
+          name: qwen-max
+          provider: langgenius/tongyi/tongyi
+        prompt_template:
+        - id: sys-select
+          role: system
+          text: |
+            你是用户研究招募专家。给你一份问卷候选人列表（每行以 RID: 开头，后面跟着 record_id 和该候选人的画像字段），以及研究员的本批筛选条件和人数上限。
+
+            选人规则：
+            1. 严格满足研究员筛选条件者优先；条件未覆盖的维度，优先选「达标」且 AI 分高的候选人
+            2. 在满足条件的前提下，注意健身房类型分层（学校 / 公司 / 商业健身房尽量都有代表，除非研究员另有要求）
+            3. 人数不得超过上限；符合条件的候选不足时可以少选，宁缺毋滥
+            4. record_id 必须从列表中逐字复制（RID: 后面的那串），禁止编造或改写
+            5. 输出前逐一核对：每条 reason 中提到的性别、年龄、健身房类型等信息，必须与该候选人所在行的实际字段完全一致；发现不一致就换人或如实改写理由，严禁编造理由
+
+            只输出一个 JSON 数组，不要输出任何其他文字、解释或代码块标记：
+            [{"record_id": "recXXXXXXXX", "reason": "中文一句话理由"}]
+        - id: user-select
+          role: user
+          text: |
+            研究员筛选条件：{{#start.criteria#}}
+
+            本批邀请人数上限：{{#start.batch_size#}}
+
+            候选人列表：
+            {{#code_filter.candidates_text#}}
+        selected: false
+        title: LLM 筛选候选人
+        type: llm
+        vision:
+          enabled: false
+      height: 90
+      id: llm_select
+      position:
+        x: 1550
+        y: 180
+      positionAbsolute:
+        x: 1550
+        y: 180
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        code: |
+          import json
+          from datetime import datetime, timedelta, timezone
+
+          EMAIL_TMPL = """Subject: Invitation: Paid interview about your gym headphones ($100 reward)
+
+          Hi {name},
+
+          Thank you for completing our headphone research survey! Based on your answers, we'd love to invite you to a 45-minute voice interview about how you use over-ear headphones at the gym.
+
+          Reward: $100 (Amazon gift card or headphones)
+          Interview link: {link}
+
+          It's a casual voice conversation with our AI interviewer - no preparation needed. With your consent, we will record audio for internal research only.
+
+          Just click the link whenever you're ready. Looking forward to hearing your story!
+
+          Best regards,
+          Headphone UX Research Team"""
+
+          def main(llm_text: str, list_body: str, interview_link: str, batch_size: str) -> dict:
+              i, j = llm_text.find('['), llm_text.rfind(']')
+              selected = []
+              if i != -1 and j > i:
+                  try:
+                      selected = json.loads(llm_text[i:j + 1])
+                  except Exception:
+                      selected = []
+              try:
+                  limit = int(batch_size)
+              except Exception:
+                  limit = 12
+
+              d = json.loads(list_body)
+              items = {it['record_id']: it.get('fields', {}) for it in d.get('data', {}).get('items', [])}
+              now = (datetime.now(timezone.utc) + timedelta(hours=8)).strftime('%Y-%m-%d %H:%M:%S')
+
+              records = []
+              summary_lines = []
+              count = 0
+              for s in selected:
+                  if count >= limit:
+                      break
+                  if not isinstance(s, dict):
+                      continue
+                  rid = str(s.get('record_id', ''))
+                  if rid not in items:
+                      continue
+                  f = items[rid]
+                  name = str(f.get('姓名', ''))
+                  reason = str(s.get('reason', ''))
+                  email_text = EMAIL_TMPL.format(name=name, link=interview_link)
+                  records.append({'record_id': rid, 'fields': {
+                      '筛选状态': '入选',
+                      '邀请状态': '已邀请(演示)',
+                      '邀请邮件内容': email_text,
+                      '邀请时间': now,
+                  }})
+                  summary_lines.append('{}. {}（{} / {} / {} / AI分 {}）—— {}'.format(
+                      count + 1, name, f.get('性别', ''), f.get('年龄段', ''),
+                      f.get('健身房类型', ''), f.get('AI匹配分', ''), reason))
+                  count += 1
+
+              if not records:
+                  raise Exception('LLM 未选出有效候选人，请调整筛选条件后重试。LLM 原始输出：' + llm_text[:300])
+
+              return {
+                  'update_payload': json.dumps({'records': records}, ensure_ascii=False),
+                  'selected_count': count,
+                  'selected_summary': '本批入选 {} 人：\n'.format(count) + '\n'.join(summary_lines),
+                  'sample_email': records[0]['fields']['邀请邮件内容'],
+              }
+        code_language: python3
+        desc: 解析 LLM 选择结果，生成每人邀请邮件并组装批量更新请求
+        outputs:
+          sample_email:
+            children: null
+            type: string
+          selected_count:
+            children: null
+            type: number
+          selected_summary:
+            children: null
+            type: string
+          update_payload:
+            children: null
+            type: string
+        selected: false
+        title: 生成邀请与回写载荷
+        type: code
+        variables:
+        - value_selector:
+          - llm_select
+          - text
+          variable: llm_text
+        - value_selector:
+          - http_list
+          - body
+          variable: list_body
+        - value_selector:
+          - start
+          - interview_link
+          variable: interview_link
+        - value_selector:
+          - start
+          - batch_size
+          variable: batch_size
+      height: 90
+      id: code_prepare
+      position:
+        x: 1850
+        y: 180
+      positionAbsolute:
+        x: 1850
+        y: 180
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: '{{#code_prepare.update_payload#}}'
+          type: json
+        desc: 批量回写：筛选状态=入选、邀请状态=已邀请(演示)、邀请邮件内容、邀请时间
+        headers: 'Authorization:Bearer {{#code_token.token#}}'
+        method: post
+        params: ''
+        selected: false
+        title: 批量回写问卷池
+        type: http-request
+        url: https://open.feishu.cn/open-apis/bitable/v1/apps/{{#env.FEISHU_BASE_TOKEN#}}/tables/{{#env.FEISHU_TABLE_ID#}}/records/batch_update
+      height: 90
+      id: http_update
+      position:
+        x: 2150
+        y: 180
+      positionAbsolute:
+        x: 2150
+        y: 180
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: ''
+        outputs:
+        - value_selector:
+          - code_filter
+          - pool_size
+          variable: pool_size
+        - value_selector:
+          - code_prepare
+          - selected_count
+          variable: selected_count
+        - value_selector:
+          - code_prepare
+          - selected_summary
+          variable: selected_summary
+        - value_selector:
+          - code_prepare
+          - sample_email
+          variable: sample_email
+        selected: false
+        title: 结束
+        type: end
+      height: 170
+      id: end
+      position:
+        x: 2450
+        y: 180
+      positionAbsolute:
+        x: 2450
+        y: 180
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0.7
