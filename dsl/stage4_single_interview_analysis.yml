@@ -1,0 +1,874 @@
+app:
+  description: 输入单场英文访谈文字稿（docx/txt/md/pdf），自动完成：高频词统计、按用户记录模板提取结构化画像、针对研究员关键词的情感分析、按判断信号框架评估与归类。方法论来源：健身房佩戴大耳罩用户访谈大纲。
+  icon: 🎧
+  icon_background: '#E4FBCC'
+  mode: workflow
+  name: 单场访谈分析-头戴耳机健身场景
+  use_icon_as_answer_icon: false
+dependencies: []
+kind: app
+version: 0.3.0
+workflow:
+  conversation_variables: []
+  environment_variables:
+  - description: 飞书自建应用的 App ID
+    id: env_feishu_app_id
+    name: FEISHU_APP_ID
+    value: ''
+    value_type: string
+  - description: 飞书自建应用的 App Secret
+    id: env_feishu_app_secret
+    name: FEISHU_APP_SECRET
+    value: ''
+    value_type: secret
+  - description: 多维表格 Base Token
+    id: env_feishu_base_token
+    name: FEISHU_BASE_TOKEN
+    value: ''
+    value_type: string
+  - description: 「访谈分析库」的 Table ID
+    id: env_feishu_analysis_table_id
+    name: FEISHU_ANALYSIS_TABLE_ID
+    value: ''
+    value_type: string
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .docx
+      - .txt
+      - .md
+      - .pdf
+      allowed_file_types:
+      - document
+      allowed_file_upload_methods:
+      - local_file
+      enabled: true
+      fileUploadConfig:
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        image_file_size_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    more_like_this:
+      enabled: false
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      auto_play: disabled
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInLoop: false
+        sourceType: start
+        targetType: document-extractor
+      id: start-source-doc_extract-target
+      source: start
+      sourceHandle: source
+      target: doc_extract
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: document-extractor
+        targetType: code
+      id: doc_extract-source-code_freq-target
+      source: doc_extract
+      sourceHandle: source
+      target: code_freq
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: document-extractor
+        targetType: llm
+      id: doc_extract-source-llm_profile-target
+      source: doc_extract
+      sourceHandle: source
+      target: llm_profile
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: document-extractor
+        targetType: llm
+      id: doc_extract-source-llm_sentiment-target
+      source: doc_extract
+      sourceHandle: source
+      target: llm_sentiment
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: document-extractor
+        targetType: llm
+      id: doc_extract-source-llm_signals-target
+      source: doc_extract
+      sourceHandle: source
+      target: llm_signals
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: end
+      id: code_freq-source-end-target
+      source: code_freq
+      sourceHandle: source
+      target: end
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: end
+      id: llm_profile-source-end-target
+      source: llm_profile
+      sourceHandle: source
+      target: end
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: end
+      id: llm_sentiment-source-end-target
+      source: llm_sentiment
+      sourceHandle: source
+      target: end
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: end
+      id: llm_signals-source-end-target
+      source: llm_signals
+      sourceHandle: source
+      target: end
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: start
+        targetType: http-request
+      id: start-source-http_token2-target
+      source: start
+      sourceHandle: source
+      target: http_token2
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: http-request
+        targetType: code
+      id: http_token2-source-code_tok-target
+      source: http_token2
+      sourceHandle: source
+      target: code_tok
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: llm_profile-source-code_pack-target
+      source: llm_profile
+      sourceHandle: source
+      target: code_pack
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: llm_sentiment-source-code_pack-target
+      source: llm_sentiment
+      sourceHandle: source
+      target: code_pack
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: llm_signals-source-code_pack-target
+      source: llm_signals
+      sourceHandle: source
+      target: code_pack
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: code
+      id: code_freq-source-code_pack-target
+      source: code_freq
+      sourceHandle: source
+      target: code_pack
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: code_tok-source-http_insert-target
+      source: code_tok
+      sourceHandle: source
+      target: http_insert
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: code_pack-source-http_insert-target
+      source: code_pack
+      sourceHandle: source
+      target: http_insert
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: http-request
+        targetType: end
+      id: http_insert-source-end-target
+      source: http_insert
+      sourceHandle: source
+      target: end
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: ''
+        selected: false
+        title: 开始
+        type: start
+        variables:
+        - allowed_file_extensions:
+          - .docx
+          - .txt
+          - .md
+          - .pdf
+          allowed_file_types:
+          - document
+          allowed_file_upload_methods:
+          - local_file
+          label: 访谈文字稿
+          options: []
+          required: true
+          type: file
+          variable: interview_file
+        - label: 受访者编号/姓名
+          max_length: 100
+          options: []
+          required: true
+          type: text-input
+          variable: interviewee_name
+        - hint: 每行一个或用逗号分隔，例如：noise cancelling, heat, weight, clamping force
+          label: 研究员关注关键词
+          max_length: 2000
+          options: []
+          required: true
+          type: paragraph
+          variable: keywords
+      height: 160
+      id: start
+      position:
+        x: 50
+        y: 280
+      positionAbsolute:
+        x: 50
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: 从上传的 docx/txt/md/pdf 中提取纯文本
+        is_array_file: false
+        selected: false
+        title: 文字稿提取
+        type: document-extractor
+        variable_selector:
+        - start
+        - interview_file
+      height: 90
+      id: doc_extract
+      position:
+        x: 350
+        y: 280
+      positionAbsolute:
+        x: 350
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        code: |
+          import re
+          from collections import Counter
+
+          STOPWORDS = set("""a an the and or but if then else when while at by for with without about into through during before after above below to from up down in out on off over under again further once here there all any both each few more most other some such no nor not only own same so than too very can will just don should now i me my mine myself we our ours ourselves you your yours yourself yourselves he him his himself she her hers herself it its itself they them their theirs themselves this that these those am is are was were be been being have has had having do does did doing would could ought im youre hes shes its weve theyre ive youve weve ill youll hell shell well theyll id youd hed shed wed theyd isnt arent wasnt werent hasnt havent hadnt doesnt dont didnt wont wouldnt shant shouldnt mustnt cant cannot uh um umm hmm mhm yeah yep yup nope okay ok alright well oh ah wow hey hi hello thank thanks please mr ms mrs sir yeah like know think thought really actually basically literally get got gets getting go goes going went want wants wanted need needs needed make makes made take takes took see saw seen look looks looking thing things stuff lot lots kinda sorta maybe probably sure course guess feel feels felt feeling say says said saying tell tells told talking talk talked ask asked answer answered right exactly totally definitely honestly interview interviewer interviewee question questions answer answers let lets us something anything everything someone anyone everybody somebody nobody one two three also even still much many every put way back""".split())
+
+          def main(text: str) -> dict:
+              words = re.findall(r"[a-zA-Z][a-zA-Z'-]{2,}", text.lower())
+              words = [w.strip("'-") for w in words]
+              words = [w for w in words if w and w not in STOPWORDS]
+              counter = Counter(words)
+              top = counter.most_common(30)
+              lines = ["{}. {} —— {} 次".format(i + 1, w, c) for i, (w, c) in enumerate(top)]
+              return {
+                  "top_words": "\n".join(lines) if lines else "（未统计到有效词汇）",
+                  "total_words": len(words),
+                  "unique_words": len(counter)
+              }
+        code_language: python3
+        desc: 统计英文文字稿高频词（自动过滤停用词与访谈口头禅）
+        variables:
+        - value_selector:
+          - doc_extract
+          - text
+          variable: text
+        outputs:
+          top_words:
+            children: null
+            type: string
+          total_words:
+            children: null
+            type: number
+          unique_words:
+            children: null
+            type: number
+        selected: false
+        title: 高频词统计
+        type: code
+      height: 90
+      id: code_freq
+      position:
+        x: 660
+        y: 60
+      positionAbsolute:
+        x: 660
+        y: 60
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 按单用户记录模板提取结构化画像，输出 Markdown + JSON
+        model:
+          completion_params:
+            temperature: 0.2
+          mode: chat
+          name: qwen-max
+          provider: langgenius/tongyi/tongyi
+        prompt_template:
+        - id: sys-profile
+          role: system
+          text: |
+            你是一名资深用户研究员，就职于一家头戴式耳机公司。我们正在研究「在健身房佩戴头戴式耳机（over-ear/on-ear headphones）」的北美用户，重点关注爽点、痛点与换购机会。
+
+            你的任务：阅读一场英文用户访谈的逐字稿，严格按照下面的模板输出结构化分析报告。
+
+            输出要求：
+            - 报告正文用中文撰写；引用受访者原话时保留英文原文，并在括号内附中文翻译
+            - 信息未提及就标注「未提及」，严禁编造或推测
+            - 每个关键结论尽量附一句英文原话作为证据
+            - 评分必须给出评分依据
+
+            模板：
+
+            ## 一、基本信息
+            - 健身房类型（学校 / 公司 / 商业 / 公寓 / 其他）
+            - 年龄段 / 职业（如提及）
+            - 健身频率与训练类型
+
+            ## 二、耳机使用情况
+            - 大耳罩型号与价格（如提及）
+            - 过去一个月健身时的佩戴频率
+            - 最常佩戴的运动场景
+            - 明确不佩戴的场景
+
+            ## 三、核心佩戴动机
+
+            ## 四、降噪/隔噪需求
+            - 评分（1-7 分）+ 评分依据
+
+            ## 五、闷热/汗/清洁问题
+            - 严重程度（1-7 分）+ 具体触发情境
+
+            ## 六、稳定性/夹持/取戴问题
+
+            ## 七、设备组合与携带方式
+
+            ## 八、优先级排序
+            - 用户最看重的前三项（从以下维度归纳：降噪/隔噪、音质、稳固、轻、夹持舒适、散热、抗汗、清洁、语义、续航、外观、价格、品牌）
+
+            ## 九、现有替代方案与态度
+
+            ## 十、换购触发因素
+
+            ## 十一、一句话洞察
+            （用一句话概括这个用户最本质的特征与机会点）
+
+            最后，在报告之后输出一个 JSON 代码块（```json），供后续多场汇总分析使用，字段如下：
+            {
+              "gym_type": "",
+              "age_or_occupation": "",
+              "fitness_frequency": "",
+              "training_type": "",
+              "headphone_model": "",
+              "wearing_frequency": "",
+              "core_motivation": "",
+              "anc_score": null,
+              "heat_score": null,
+              "top3_priorities": [],
+              "repurchase_triggers": "",
+              "one_sentence_insight": ""
+            }
+        - id: user-profile
+          role: user
+          text: |
+            受访者编号：{{#start.interviewee_name#}}
+
+            访谈文字稿：
+            {{#doc_extract.text#}}
+        selected: false
+        title: ① 用户画像提取
+        type: llm
+        vision:
+          enabled: false
+      height: 90
+      id: llm_profile
+      position:
+        x: 660
+        y: 190
+      positionAbsolute:
+        x: 660
+        y: 190
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 针对研究员输入的关键词逐一做情感态度分析
+        model:
+          completion_params:
+            temperature: 0.2
+          mode: chat
+          name: qwen-max
+          provider: langgenius/tongyi/tongyi
+        prompt_template:
+        - id: sys-sentiment
+          role: system
+          text: |
+            你是一名资深用户研究员。研究员给出了一组关注关键词，你的任务是：针对每一个关键词，分析英文访谈逐字稿中受访者的相关表述与情感态度。
+
+            对每个关键词，严格按以下格式输出（用中文撰写，引用保留英文原文并附中文翻译）：
+
+            ### 关键词：xxx
+            - **提及次数**：N 次
+            - **情感态度**：正面 / 负面 / 混合 / 中性 / 未提及
+            - **代表性原话**（最多 3 条，英文原文 + 中文翻译）
+            - **对使用/购买决策的影响程度**：高 / 中 / 低（给出判断依据）
+            - **小结**：2-3 句中文
+
+            分析规则：
+            1. 同义词和近义表达也算提及。例如关键词是 heat，则 hot、sweaty、stuffy、sweat、ventilation 等相关表述都要纳入
+            2. 结合上下文判断情感，不要孤立看单个词；受访者语气犹豫或前后矛盾时如实标注「混合」
+            3. 完全没有提及就如实写「未提及」，不要编造引用
+            4. 区分「受访者主动提出」和「被研究员问到才回答」，主动提出的权重更高，请在原话后标注（主动提及 / 被问及）
+        - id: user-sentiment
+          role: user
+          text: |
+            受访者编号：{{#start.interviewee_name#}}
+
+            研究员关注的关键词：
+            {{#start.keywords#}}
+
+            访谈文字稿：
+            {{#doc_extract.text#}}
+        selected: false
+        title: ② 关键词情感分析
+        type: llm
+        vision:
+          enabled: false
+      height: 90
+      id: llm_sentiment
+      position:
+        x: 660
+        y: 320
+      positionAbsolute:
+        x: 660
+        y: 320
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 按强/弱信号框架做 6 项判断，并输出用户归类
+        model:
+          completion_params:
+            temperature: 0.2
+          mode: chat
+          name: qwen-max
+          provider: langgenius/tongyi/tongyi
+        prompt_template:
+        - id: sys-signals
+          role: system
+          text: |
+            你是一名资深用户研究员，就职于一家头戴式耳机公司。请基于下面的「判断信号框架」，对这场英文访谈做出评估。
+
+            对以下 6 个判断问题，逐一给出：判断结论（强信号 / 弱信号 / 信号混合 / 信息不足）+ 依据（引用英文原话 + 中文翻译）：
+
+            1. **大耳罩健身是否是稳定行为？**
+               - 强信号：每周多次戴；多个运动场景都戴；会主动把耳机带进健身包
+               - 弱信号：只是偶尔忘带其他耳机才戴；只做极轻量运动时戴；没有形成习惯
+            2. **核心价值是否明确？**
+               - 强信号：能清楚说出「为什么必须戴大耳罩」（沉浸、降噪、不想塞耳、风格、音质等）
+               - 弱信号：只是「手边刚好有」；没有明显偏好；痛点大于收益
+            3. **闷热/汗是否是高优先级问题？**
+               - 强信号：多次提到热、汗、耳垫湿、味道、清洁麻烦；影响下次是否佩戴
+               - 弱信号：知道会热但不在意；只在极端运动中出现；愿意忍
+            4. **降噪是否真需求？**
+               - 强信号：主动打开 ANC；健身房噪声影响训练；愿意为更好隔噪付费
+               - 弱信号：只是为了让音乐更大声；反而担心听不到周围；从不开 ANC
+            5. **稳定性是否阻碍高强度运动？**
+               - 强信号：跑步/跳跃/卧推等动作明确导致滑动、移位或不安全感
+               - 弱信号：主要做器械或低冲击运动，稳定性基本够用
+            6. **是否存在换购机会？**
+               - 强信号：现有产品在健身场景明显不适配，但用户仍坚持戴，说明需求强
+               - 弱信号：现有产品已经足够好；只等坏了再换；不愿为健身场景单独购买
+
+            然后输出「用户归类」：
+            - **用户类型**：沉浸训练型 / 风格展示型 / 音质优先型 / 不想塞耳型 / 办公通勤顺带型 / 偶发替代型（可组合，标注主次）
+            - **健身强度**：低冲击器械 / 力量训练 / 有氧器械 / 跑跳类高冲击 / 团课
+            - **大耳罩角色**：主力健身耳机 / 通勤办公耳机顺带健身 / 备用耳机 / 只在特定动作使用
+            - **痛点强度**：无感 / 可忍 / 经常抱怨但继续用 / 已经影响佩戴 / 已经考虑换购
+            - **机会判断**：已有强需求且现有产品不适配 / 现有产品基本满足 / 行为不稳定 / 只是个别场景
+
+            规则：判断必须基于文字稿证据，信息不足就如实标注，不要编造。
+
+            最后输出一个 JSON 代码块（```json）：
+            {
+              "stable_behavior": "strong|weak|mixed|unknown",
+              "clear_value": "strong|weak|mixed|unknown",
+              "heat_priority": "strong|weak|mixed|unknown",
+              "anc_real_need": "strong|weak|mixed|unknown",
+              "stability_blocker": "strong|weak|mixed|unknown",
+              "repurchase_opportunity": "strong|weak|mixed|unknown",
+              "user_type": "",
+              "fitness_intensity": "",
+              "headphone_role": "",
+              "pain_severity": "",
+              "opportunity_judgment": ""
+            }
+        - id: user-signals
+          role: user
+          text: |
+            受访者编号：{{#start.interviewee_name#}}
+
+            访谈文字稿：
+            {{#doc_extract.text#}}
+        selected: false
+        title: ③ 判断信号与归类
+        type: llm
+        vision:
+          enabled: false
+      height: 90
+      id: llm_signals
+      position:
+        x: 660
+        y: 450
+      positionAbsolute:
+        x: 660
+        y: 450
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: ''
+        outputs:
+        - value_selector:
+          - start
+          - interviewee_name
+          variable: interviewee
+        - value_selector:
+          - code_freq
+          - top_words
+          variable: top_words
+        - value_selector:
+          - llm_profile
+          - text
+          variable: profile_report
+        - value_selector:
+          - llm_sentiment
+          - text
+          variable: keyword_sentiment
+        - value_selector:
+          - llm_signals
+          - text
+          variable: signal_assessment
+        selected: false
+        title: 结束
+        type: end
+      height: 200
+      id: end
+      position:
+        x: 980
+        y: 280
+      positionAbsolute:
+        x: 980
+        y: 280
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: '{"app_id": "{{#env.FEISHU_APP_ID#}}", "app_secret": "{{#env.FEISHU_APP_SECRET#}}"}'
+          type: json
+        desc: 用 App ID/Secret 换取 tenant_access_token
+        headers: 'Content-Type:application/json'
+        method: post
+        params: ''
+        selected: false
+        title: 获取飞书凭证
+        type: http-request
+        url: https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal
+      height: 90
+      id: http_token2
+      position:
+        x: 350
+        y: 620
+      positionAbsolute:
+        x: 350
+        y: 620
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        code: |
+          import json
+
+          def main(token_body: str) -> dict:
+              token = ''
+              try:
+                  token = json.loads(token_body).get('tenant_access_token', '')
+              except Exception:
+                  pass
+              if not token:
+                  raise Exception('飞书凭证获取失败，请检查环境变量 FEISHU_APP_ID / FEISHU_APP_SECRET。飞书返回：' + str(token_body)[:300])
+              return {'token': token}
+        code_language: python3
+        desc: 解析 tenant_access_token，失败立即报错
+        outputs:
+          token:
+            children: null
+            type: string
+        selected: false
+        title: 解析凭证
+        type: code
+        variables:
+        - value_selector:
+          - http_token2
+          - body
+          variable: token_body
+      height: 90
+      id: code_tok
+      position:
+        x: 620
+        y: 620
+      positionAbsolute:
+        x: 620
+        y: 620
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        code: |
+          import json, re
+          from datetime import datetime, timedelta, timezone
+
+          def extract_json_block(text: str) -> str:
+              blocks = re.findall(r'```json\s*(\{.*?\})\s*```', text, re.S)
+              if blocks:
+                  return blocks[-1]
+              i, j = text.find('{'), text.rfind('}')
+              if i != -1 and j > i:
+                  return text[i:j + 1]
+              return '{}'
+
+          def main(profile_text: str, sentiment_text: str, signals_text: str,
+                   top_words: str, interviewee: str) -> dict:
+              profile_json = extract_json_block(profile_text)
+              signals_json = extract_json_block(signals_text)
+              user_type, opportunity, pain = '', '', ''
+              try:
+                  s = json.loads(signals_json)
+                  user_type = str(s.get('user_type', ''))
+                  opportunity = str(s.get('opportunity_judgment', ''))
+                  pain = str(s.get('pain_severity', ''))
+              except Exception:
+                  pass
+              now = (datetime.now(timezone.utc) + timedelta(hours=8)).strftime('%Y-%m-%d %H:%M:%S')
+              report = profile_text + '\n\n---\n\n' + sentiment_text + '\n\n---\n\n' + signals_text
+              fields = {
+                  '受访者编号': interviewee,
+                  '用户类型': user_type,
+                  '机会判断': opportunity,
+                  '痛点强度': pain,
+                  '高频词': top_words,
+                  '画像JSON': profile_json,
+                  '信号JSON': signals_json,
+                  '分析报告全文': report,
+                  '分析时间': now,
+              }
+              return {
+                  'payload': json.dumps({'fields': fields}, ensure_ascii=False),
+                  'user_type': user_type,
+                  'opportunity': opportunity,
+              }
+        code_language: python3
+        desc: 提取三个LLM输出中的JSON块，组装写入「访谈分析库」的记录
+        outputs:
+          opportunity:
+            children: null
+            type: string
+          payload:
+            children: null
+            type: string
+          user_type:
+            children: null
+            type: string
+        selected: false
+        title: 打包分析结果
+        type: code
+        variables:
+        - value_selector:
+          - llm_profile
+          - text
+          variable: profile_text
+        - value_selector:
+          - llm_sentiment
+          - text
+          variable: sentiment_text
+        - value_selector:
+          - llm_signals
+          - text
+          variable: signals_text
+        - value_selector:
+          - code_freq
+          - top_words
+          variable: top_words
+        - value_selector:
+          - start
+          - interviewee_name
+          variable: interviewee
+      height: 90
+      id: code_pack
+      position:
+        x: 950
+        y: 620
+      positionAbsolute:
+        x: 950
+        y: 620
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: '{{#code_pack.payload#}}'
+          type: json
+        desc: 向「访谈分析库」写入本场分析结果
+        headers: 'Authorization:Bearer {{#code_tok.token#}}'
+        method: post
+        params: ''
+        selected: false
+        title: 写入访谈分析库
+        type: http-request
+        url: https://open.feishu.cn/open-apis/bitable/v1/apps/{{#env.FEISHU_BASE_TOKEN#}}/tables/{{#env.FEISHU_ANALYSIS_TABLE_ID#}}/records
+      height: 90
+      id: http_insert
+      position:
+        x: 1280
+        y: 620
+      positionAbsolute:
+        x: 1280
+        y: 620
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0.8
