@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Interview — Over-ear Headphones at the Gym</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f3f4f6; color: #1f2937; }
+  .container { max-width: 860px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .sub { color: #6b7280; font-size: 13px; margin-bottom: 16px; }
+  .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  label { font-size: 12px; color: #6b7280; display: block; margin-bottom: 4px; }
+  input[type=text], input[type=password], textarea { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 10px; font-size: 13px; font-family: inherit; }
+  textarea { resize: vertical; }
+  .col { flex: 1; min-width: 200px; }
+  button { border: none; border-radius: 8px; padding: 9px 18px; font-size: 14px; cursor: pointer; }
+  .btn-primary { background: #2563eb; color: #fff; }
+  .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
+  .btn-ghost { background: #e5e7eb; color: #374151; }
+  .btn-danger { background: #dc2626; color: #fff; }
+  #chat { height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px; }
+  .msg { max-width: 78%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.55; white-space: pre-wrap; }
+  .ai { background: #eff6ff; align-self: flex-start; border-bottom-left-radius: 4px; }
+  .me { background: #dcfce7; align-self: flex-end; border-bottom-right-radius: 4px; }
+  .who { font-size: 11px; color: #9ca3af; margin-bottom: 3px; }
+  #interim { font-size: 13px; color: #6b7280; min-height: 20px; font-style: italic; margin: 6px 2px; }
+  .controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  #micBtn.listening { background: #dc2626; color: #fff; }
+  #status { font-size: 12px; color: #6b7280; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #9ca3af; margin-right: 6px; }
+  .dot.on { background: #16a34a; }
+  #typedRow { display: flex; gap: 8px; margin-top: 8px; }
+  #typedRow input { flex: 1; }
+  .hidden { display: none; }
+  .warn { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🎧 AI Interview Session</h1>
+  <div class="sub">Over-ear Headphones at the Gym · North America User Research</div>
+
+  <div id="setupCard" class="card">
+    <div class="row">
+      <div class="col">
+        <label>Dify API Base</label>
+        <input type="text" id="apiBase" value="http://localhost/v1">
+      </div>
+      <div class="col">
+        <label>API Key（Dify 应用 → 访问 API → API 密钥）</label>
+        <input type="password" id="apiKey" placeholder="app-xxxxxxxxxxxxxxxx">
+      </div>
+    </div>
+    <div class="row">
+      <div class="col">
+        <label>Respondent ID</label>
+        <input type="text" id="interviewee" value="US-TEST-001">
+      </div>
+      <div class="col">
+        <label>Focus Scenarios</label>
+        <input type="text" id="sceneFocus" value="gym scenario, commute scenario">
+      </div>
+    </div>
+    <div class="row">
+      <div class="col">
+        <label>Interview Outline</label>
+        <textarea id="outline" rows="8"></textarea>
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn-primary" id="startBtn">Start Interview</button>
+      <span id="setupHint" class="sub" style="margin:0">用 Chrome / Edge 打开本页；首次会请求麦克风权限。</span>
+    </div>
+  </div>
+
+  <div id="interviewCard" class="card hidden">
+    <div id="chat"></div>
+    <div id="interim"></div>
+    <div class="controls">
+      <button id="micBtn" class="btn-ghost">🎤 Start Speaking</button>
+      <button id="exportBtn" class="btn-ghost">📄 Export Transcript</button>
+      <button id="endBtn" class="btn-danger">End Interview</button>
+      <span id="status"><span class="dot" id="dot"></span><span id="statusText">idle</span></span>
+    </div>
+    <div id="typedRow">
+      <input type="text" id="typedInput" placeholder="Or type your answer here and press Enter…">
+      <button id="typedSend" class="btn-primary">Send</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var apiBase, apiKey, conversationId = '';
+  var listening = false, recog = null, finalText = '';
+  var transcript = []; // {role:'Interviewer'|'Participant', text}
+  var started = false;
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  // 预填 demo 大纲（与 demo_interview_outline_en.md 同内容，可整段替换）
+  $('outline').value = [
+    '1. Warm-up: workout routine, how often, training type, gym type.',
+    '2. Current headphones: which model, over-ear vs in-ear, how often worn at the gym.',
+    '3. Core motivation: why over-ear at the gym (focus / immersion / noise blocking / style / sound).',
+    '4. Noise cancelling: importance of ANC at the gym, gym noise environment, do they turn ANC on.',
+    '5. Heat / sweat / cleaning: how big an issue, ear pads, cleaning habits, ever skipped wearing because of it.',
+    '6. Stability / fit: which exercises cause slipping (bench press, running, jumping), ever stopped a movement.',
+    '7. Device combo: other earbuds carried, when switching, how they carry the headphones.',
+    '8. Priorities: top-3 among ANC, sound, stability, weight, clamp comfort, heat, sweat resistance, cleaning, battery, looks, price, brand.',
+    '9. Alternatives & repurchase triggers: considered switching to earbuds / bone conduction; what would make them buy a gym-specific over-ear; acceptable price range.',
+    '10. Closing: anything important not covered.'
+  ].join('\n');
+
+  function setStatus(text, on) {
+    $('statusText').textContent = text;
+    $('dot').className = 'dot' + (on ? ' on' : '');
+  }
+
+  function addMsg(role, text) {
+    var div = document.createElement('div');
+    div.className = 'msg ' + (role === 'Interviewer' ? 'ai' : 'me');
+    var who = document.createElement('div');
+    who.className = 'who';
+    who.textContent = role;
+    div.appendChild(who);
+    div.appendChild(document.createTextNode(text));
+    $('chat').appendChild(div);
+    $('chat').scrollTop = $('chat').scrollHeight;
+    transcript.push({ role: role, text: text });
+  }
+
+  function speak(text) {
+    try {
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = 'en-US';
+      u.rate = 1.0;
+      window.speechSynthesis.speak(u);
+    } catch (e) { /* TTS 不可用则静默跳过 */ }
+  }
+
+  function sendToDify(query, onDelta, onDone, onError) {
+    var body = {
+      inputs: {
+        outline: $('outline').value,
+        scene_focus: $('sceneFocus').value,
+        interviewee: $('interviewee').value
+      },
+      query: query,
+      response_mode: 'streaming',
+      conversation_id: conversationId,
+      user: 'respondent-' + ($('interviewee').value || 'anon')
+    };
+    fetch(apiBase.replace(/\/+$/, '') + '/chat-messages', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + apiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    }).then(function (resp) {
+      if (!resp.ok) {
+        return resp.text().then(function (t) { onError('HTTP ' + resp.status + ': ' + t.slice(0, 300)); });
+      }
+      var reader = resp.body.getReader();
+      var decoder = new TextDecoder('utf-8');
+      var buf = '';
+      function pump() {
+        return reader.read().then(function (r) {
+          if (r.done) { onDone(); return; }
+          buf += decoder.decode(r.value, { stream: true });
+          var parts = buf.split('\n\n');
+          buf = parts.pop();
+          parts.forEach(function (chunk) {
+            chunk.split('\n').forEach(function (line) {
+              if (line.indexOf('data: ') !== 0) return;
+              var payload = line.slice(6).trim();
+              if (!payload || payload === '[DONE]') return;
+              try {
+                var ev = JSON.parse(payload);
+                if (ev.event === 'message' && ev.answer) onDelta(ev.answer);
+                if (ev.conversation_id) conversationId = ev.conversation_id;
+                if (ev.event === 'error') onError(JSON.stringify(ev).slice(0, 300));
+              } catch (e) { /* 忽略不完整行 */ }
+            });
+          });
+          return pump();
+        });
+      }
+      return pump();
+    }).catch(function (err) {
+      onError('网络或跨域错误：' + err.message + '（如果是 CORS 问题，请用本地服务器打开本页，例如 python -m http.server）');
+    });
+  }
+
+  var currentAiDiv = null, currentAiText = '';
+  function askAI(query, displayQuery) {
+    setStatus('AI is thinking…', true);
+    currentAiText = '';
+    currentAiDiv = document.createElement('div');
+    currentAiDiv.className = 'msg ai';
+    var who = document.createElement('div');
+    who.className = 'who';
+    who.textContent = 'Interviewer';
+    currentAiDiv.appendChild(who);
+    currentAiDiv.appendChild(document.createTextNode('…'));
+    $('chat').appendChild(currentAiDiv);
+    $('chat').scrollTop = $('chat').scrollHeight;
+
+    sendToDify(query,
+      function (delta) {
+        currentAiText += delta;
+        currentAiDiv.childNodes[1].textContent = currentAiText;
+        $('chat').scrollTop = $('chat').scrollHeight;
+      },
+      function () {
+        transcript.push({ role: 'Interviewer', text: currentAiText });
+        speak(currentAiText);
+        setStatus('listening ready', false);
+      },
+      function (err) {
+        currentAiDiv.childNodes[1].textContent = '[Error] ' + err;
+        setStatus('error', false);
+      });
+  }
+
+  function submitAnswer(text) {
+    if (!text || !text.trim()) return;
+    addMsg('Participant', text.trim());
+    askAI(text.trim());
+  }
+
+  // ---- 语音识别 ----
+  function setupRecognition() {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return null;
+    var r = new SR();
+    r.lang = 'en-US';
+    r.continuous = true;
+    r.interimResults = true;
+    r.onresult = function (e) {
+      var interim = '';
+      for (var i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) finalText += e.results[i][0].transcript + ' ';
+        else interim += e.results[i][0].transcript;
+      }
+      $('interim').textContent = '🎤 ' + (finalText + interim);
+    };
+    r.onerror = function (e) {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        $('interim').textContent = '⚠️ 麦克风权限被拒绝，请改用下方打字输入。';
+        listening = false;
+        $('micBtn').textContent = '🎤 Start Speaking';
+        $('micBtn').classList.remove('listening');
+      }
+    };
+    r.onend = function () {
+      if (listening) { try { r.start(); } catch (e) {} }
+    };
+    return r;
+  }
+
+  $('micBtn').addEventListener('click', function () {
+    if (!recog) recog = setupRecognition();
+    if (!recog) {
+      $('interim').textContent = '⚠️ 当前浏览器不支持语音识别（请用 Chrome/Edge），请用下方打字输入。';
+      return;
+    }
+    if (!listening) {
+      finalText = '';
+      $('interim').textContent = '🎤 listening…（说完点 Send Answer）';
+      try { recog.start(); } catch (e) {}
+      listening = true;
+      this.textContent = '✅ Send Answer';
+      this.classList.add('listening');
+      setStatus('listening', true);
+    } else {
+      listening = false;
+      try { recog.stop(); } catch (e) {}
+      this.textContent = '🎤 Start Speaking';
+      this.classList.remove('listening');
+      var t = finalText.trim();
+      $('interim').textContent = '';
+      if (t) submitAnswer(t);
+      finalText = '';
+    }
+  });
+
+  $('typedSend').addEventListener('click', function () {
+    var t = $('typedInput').value;
+    $('typedInput').value = '';
+    submitAnswer(t);
+  });
+  $('typedInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { $('typedSend').click(); }
+  });
+
+  $('startBtn').addEventListener('click', function () {
+    apiBase = $('apiBase').value.trim();
+    apiKey = $('apiKey').value.trim();
+    if (!apiKey) { alert('请填写 API Key'); return; }
+    if (!$('outline').value.trim()) { alert('访谈大纲不能为空'); return; }
+    $('setupCard').classList.add('hidden');
+    $('interviewCard').classList.remove('hidden');
+    started = true;
+    askAI('(The interview begins now. Please greet the respondent and ask your first question.)');
+  });
+
+  $('exportBtn').addEventListener('click', function () {
+    var lines = ['# Interview Transcript',
+      'Respondent: ' + $('interviewee').value,
+      'Date: ' + new Date().toISOString().slice(0, 19).replace('T', ' '),
+      'Focus: ' + $('sceneFocus').value, ''];
+    transcript.forEach(function (m) { lines.push(m.role + ': ' + m.text, ''); });
+    var blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'transcript_' + ($('interviewee').value || 'unknown') + '.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  $('endBtn').addEventListener('click', function () {
+    listening = false;
+    if (recog) { try { recog.stop(); } catch (e) {} }
+    window.speechSynthesis.cancel();
+    $('exportBtn').click();
+    setStatus('interview ended — transcript exported', false);
+    $('endBtn').disabled = true;
+  });
+})();
+</script>
+</body>
+</html>
